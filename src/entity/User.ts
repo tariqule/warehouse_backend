@@ -15,4 +15,12 @@ export class User extends BaseEntity {
   @Field()
   @Column("text")
   lastName: string;
+
+  @Column("text", { nullable: true })
+  password: string;
+
+  @Column("int", { default: 0, nullable: true })
+  tokenVersion: number;
 }
+//bcryptjs : => hash password
+// unique : query : matching password :

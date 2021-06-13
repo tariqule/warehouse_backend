@@ -2,7 +2,8 @@ const express = require("express");
 const { ApolloServer } = require("apollo-server-express");
 const { createConnection } = require("typeorm");
 const { buildSchema } = require("type-graphql");
-const { UserResolver } = require("./resolver/resolver");
+const { UserResolver } = require("./resolver/user.resolver");
+const { ProductResolver } = require("./resolver/product.resolver");
 const runServer = async () => {
   const app = express();
 
@@ -14,7 +15,7 @@ const runServer = async () => {
   //graphical
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
-      resolvers: [UserResolver],
+      resolvers: [UserResolver, ProductResolver],
     }),
     context: ({ req, res }) => ({ req, res }),
   });
