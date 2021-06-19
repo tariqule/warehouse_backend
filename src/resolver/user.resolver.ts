@@ -1,17 +1,27 @@
-import { createAccessToken } from "./../auth";
+import {
+  createAccessToken,
+  createRefreshToken,
+  refershTokeSecretKey,
+  // tokeSecretKey,
+} from "./../auth";
 import { compare, hash } from "bcryptjs";
 import {
   Arg,
+  Ctx,
   Field,
   Mutation,
   ObjectType,
   Query,
   Resolver,
+  // UseMiddleware,
 } from "type-graphql";
 import { User } from "../entity/User";
+import { Context } from "../context/context";
+import { sendRefreshToken } from "../refresher/sendRefreshToken";
+import { verify } from "jsonwebtoken";
 
 @ObjectType()
-class LoginResponse {
+class TokenResponse {
   @Field(() => String)
   accessToken: String;
 }
@@ -28,10 +38,11 @@ export class UserResolver {
     return User.find();
   }
 
-  @Mutation(() => LoginResponse)
+  @Mutation(() => TokenResponse)
   async login(
     @Arg("firstName") firstName: string,
-    @Arg("password") password: string
+    @Arg("password") password: string,
+    @Ctx() { res }: Context
   ) {
     const checkFirstName = await User.findOne({ where: { firstName } });
 
@@ -41,29 +52,60 @@ export class UserResolver {
 
     if (!comparePassword) throw new Error("bad password");
 
+    console.log("res => ", res);
+    console.log("checkFirstName => ", checkFirstName);
+    const generateRefreshToken = createRefreshToken(checkFirstName);
+    sendRefreshToken(res, generateRefreshToken);
+
     return {
       accessToken: createAccessToken(checkFirstName),
     };
   }
 
-  @Mutation(() => Boolean)
+  @Mutation(() => TokenResponse)
   async createUser(
     @Arg("firstName") firstName: string,
     @Arg("lastName") lastName: string,
-    @Arg("password") password: string
+    @Arg("password") password: string,
+    @Ctx() { res }: Context
   ) {
     console.log({ firstName, lastName, password });
     try {
       const hashPassword = await hash(password, 14);
       console.log(hashPassword);
       await User.insert({ firstName, lastName, password: hashPassword });
-      return true;
+      //return true;
+      const checkFirstName = await User.findOne({ where: { firstName } });
+      const generateRefreshToken = createRefreshToken(checkFirstName);
+      sendRefreshToken(res, generateRefreshToken);
+
+      return {
+        accessToken: createAccessToken({ firstName }),
+      };
     } catch (err) {
       return err;
     }
   }
+
+  @Query(() => User)
+  async currentUser(@Ctx() { res, req }: Context) {
+    console.log("seanToken ===> ", req.cookies.seanToken);
+    const getToken = req.cookies.seanToken;
+    if (!getToken) throw new Error("You need to login");
+
+    let payload = null; //object firstname
+
+    try {
+      console.log(getToken);
+      payload = verify(getToken, refershTokeSecretKey);
+      console.log(payload);
+    } catch (err) {
+      res.send({ ok: false, accessToken: "" });
+    }
+    const user = await User.findOne({ firstName: payload.firstName });
+    console.log("user", user);
+    if (!user) throw new Error("User not found");
+
+    return user;
+  }
 }
-// $2a$14$4tcfSVeGA7zF3OQRrZ7BuOHHtJFpDXy6hF9q648hezv4IHd9yLp3y
-// $2a$14$6jK84wOqgfLalAbDbMv8ie5OGnL4Jhw8s0fSf4oGl9nMZ9KzcWLXa
-// $2a$14$/ZhIRl61KbjglngoPkWPJuJeBXlplmv9AGwyO8WW/Z/bCq0sPbsU2
-// $2a$14$tYuqjYqLD8o38PdQbybQMOApXhJfcmz4E7aHlxOe8j2FB.3dqne.G
