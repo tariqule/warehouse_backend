@@ -1,7 +1,7 @@
 import {
   createAccessToken,
   createRefreshToken,
-  refershTokeSecretKey,
+  //refershTokeSecretKey,
   // tokeSecretKey,
 } from "./../auth";
 import { compare, hash } from "bcryptjs";
@@ -13,12 +13,14 @@ import {
   ObjectType,
   Query,
   Resolver,
+  UseMiddleware,
   // UseMiddleware,
 } from "type-graphql";
 import { User } from "../entity/User";
 import { Context } from "../context/context";
 import { sendRefreshToken } from "../refresher/sendRefreshToken";
-import { verify } from "jsonwebtoken";
+//import { verify } from "jsonwebtoken";
+import { isAuth } from "../middleware/isAuthMiddleware";
 
 @ObjectType()
 class TokenResponse {
@@ -87,25 +89,32 @@ export class UserResolver {
     }
   }
 
+  // @Query(() => User)
+  // async currentUser(@Ctx() { res, req }: Context) {
+  //   console.log("seanToken ===> ", req.cookies.seanToken);
+  //   const getToken = req.cookies.seanToken;
+  //   if (!getToken) throw new Error("You need to login");
+
+  //   let payload = null; //object firstname
+
+  //   try {
+  //     console.log(getToken);
+  //     payload = verify(getToken, refershTokeSecretKey);
+  //     console.log(payload);
+  //   } catch (err) {
+  //     res.send({ ok: false, accessToken: "" });
+  //   }
+  //   const user = await User.findOne({ firstName: payload.firstName });
+  //   console.log("user", user);
+  //   if (!user) throw new Error("User not found");
+
+  //   return user;
+  // }
+
   @Query(() => User)
-  async currentUser(@Ctx() { res, req }: Context) {
-    console.log("seanToken ===> ", req.cookies.seanToken);
-    const getToken = req.cookies.seanToken;
-    if (!getToken) throw new Error("You need to login");
-
-    let payload = null; //object firstname
-
-    try {
-      console.log(getToken);
-      payload = verify(getToken, refershTokeSecretKey);
-      console.log(payload);
-    } catch (err) {
-      res.send({ ok: false, accessToken: "" });
-    }
-    const user = await User.findOne({ firstName: payload.firstName });
-    console.log("user", user);
-    if (!user) throw new Error("User not found");
-
-    return user;
+  @UseMiddleware(isAuth)
+  async currentUser(@Ctx() { payload }: Context) {
+    console.log(payload);
+    return payload;
   }
 }
